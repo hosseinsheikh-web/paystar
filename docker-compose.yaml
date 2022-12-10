@@ -1,0 +1,76 @@
+version: '3.9'
+services:
+  application:
+    build:
+      context: ./docker/dockerfiles
+      dockerfile: app.dockerfile
+    working_dir: /var/www/paystar
+    container_name: application
+    restart: unless-stopped
+    tty: true
+ 
+    volumes:
+      - ./:/var/www/paystar
+    depends_on:
+      - db
+    networks:
+      appnet:
+        ipv4_address: 172.20.1.2
+    ports:
+      - 9000:9000
+    env_file:
+      - web/.env
+  webserver:
+    build:
+      context: ./docker/dockerfiles
+      dockerfile: nginx.dockerfile
+    command: nginx -g 'daemon off;'
+    container_name: webserver
+    restart: unless-stopped
+    tty: true
+    working_dir: /var/www/paystar
+    volumes:
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d/:ro
+      - ./:/var/www/paystar
+    environment:
+      VIRTUAL_HOST: paystar.localhost
+    depends_on:
+      - application
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      appnet:
+        ipv4_address: 172.20.1.3
+
+  db:
+    image: mysql:8.0
+    volumes:
+      - dbdata:/var/lib/mysql
+    container_name: db
+    restart: unless-stopped
+    tty: true
+    env_file:
+      - .env
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    ports:
+      - '${DB_PORT:-3306}:3306'
+    networks:
+      appnet:
+        ipv4_address: 172.20.1.4
+
+volumes:
+  dbdata:
+    driver: local
+networks:
+  appnet:
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.20.1.1/24"
