@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Behaviors\PayMiddlewares;
 use App\Http\Middleware\HashHmacMiddleware;
 use App\Http\Middleware\HttpCreatePayMiddleware;
 use App\Http\Middleware\HttpPayStatusMiddleware;
@@ -23,11 +24,7 @@ class PayController extends Controller
                     'callback' => $this->getCallbackUrl(),
                     "key" => env('PAYSTAR_SEC_KEY')
                 ])
-                ->through([
-                    HashHmacMiddleware::class . ":" . self::HASH_ALGORITHM,
-                    HttpCreatePayMiddleware::class,
-                    HttpPayStatusMiddleware::class . ":" . env('PAYSTAR_PAYMENT_URL')
-                ])->then(
+                ->through(resolve(PayMiddlewares::class)->get())->then(
                     function () {
                         dd('');
                     }
